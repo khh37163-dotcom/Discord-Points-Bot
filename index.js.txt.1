@@ -1,0 +1,50 @@
+const { Client, GatewayIntentBits } = require('discord.js');
+const fs = require('fs');
+const POINTS_FILE = './points.json';
+let points = {};
+
+if (fs.existsSync(POINTS_FILE)) {
+  try { points = JSON.parse(fs.readFileSync(POINTS_FILE)); } catch(e){ points = {}; }
+}
+
+function savePoints(){ fs.writeFileSync(POINTS_FILE, JSON.stringify(points, null, 2)); }
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName, options } = interaction;
+
+  if (commandName === 'addpoints') {
+    const user = options.getUser('user');
+    const amount = options.getInteger('amount');
+    if (amount <= 0) return interaction.reply({ content: 'الكمية لازم تكون أكبر من صفر.', ephemeral: true });
+    if (!points[user.id]) points[user.id] = 0;
+    points[user.id] += amount;
+    savePoints();
+    return interaction.reply(`✅ أضفت ${amount} نقطة لـ ${user.username}. (الآن ${points[user.id]} نقطة)`);
+  }
+
+  if (commandName === 'removepoints') {
+    const user = options.getUser('user');
+    const amount = options.getInteger('amount');
+    if (amount <= 0) return interaction.reply({ content: 'الكمية لازم تكون أكبر من صفر.', ephemeral: true });
+    if (!points[user.id]) points[user.id] = 0;
+    points[user.id] = Math.max(0, points[user.id] - amount);
+    savePoints();
+    return interaction.reply(`❌ سحبت ${amount} نقطة من ${user.username}. (الآن ${points[user.id]} نقطة)`);
+  }
+
+  if (commandName === 'points') {
+    const user = options.getUser('user') || interaction.user;
+    const userPoints = points[user.id] || 0;
+    return interaction.reply(` ${user.username} عنده ${userPoints} نقطة.`);
+  }
+});
+
+client.login(process.env.TOKEN);
